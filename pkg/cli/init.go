@@ -19,7 +19,7 @@ func (c *CLI) Init() error {
     type: local_file
     properties:
       path: ./example.txt
-      content: "Hello from MyIaC!"
+      content: "Hello from GoIaC!"
 `
 		if err := os.WriteFile("main.yaml", []byte(exampleConfig), 0644); err != nil {
 			return fmt.Errorf("failed to create example config: %w", err)
@@ -30,8 +30,8 @@ func (c *CLI) Init() error {
 	fmt.Println("\nProject initialized successfully!")
 	fmt.Println("Next steps:")
 	fmt.Println("  1. Edit main.yaml to define your infrastructure")
-	fmt.Println("  2. Run 'myiac plan' to preview changes")
-	fmt.Println("  3. Run 'myiac apply' to create resources")
+	fmt.Println("  2. Run 'goiac plan' to preview changes")
+	fmt.Println("  3. Run 'goiac apply' to create resources")
 
 	return nil
 }

@@ -22,10 +22,29 @@ cd GoIaC
 go build -o GoIaC ./cmd
 ```
 
+## Usage Modes
+
+### Interactive Mode
+![img.png](img.png)
+
+### Direct Command Mode
+Run single commands directly:
+
+```bash
+GoIaC init          # Initialize project
+GoIaC plan          # Preview changes
+GoIaC apply         # Apply changes
+GoIaC state show    # View state
+GoIaC destroy       # Destroy all resources
+```
+
 ## Quick Start
 
 ```bash
-# Initialize project
+# Start interactive mode
+GoIaC
+
+# Or use direct commands
 GoIaC init
 
 # Edit main.yaml to define your infrastructure
