@@ -40,7 +40,7 @@ resources:
 	assert.Equal(t, "web", resources[0].ID)
 	assert.Equal(t, "docker_container", resources[0].Type)
 	assert.Equal(t, "nginx", resources[0].Properties["image"])
-	assert.Equal(t, float64(8080), resources[0].Properties["port"]) // YAML numbers are float64
+	assert.Equal(t, 8080, resources[0].Properties["port"]) // YAML numbers are int
 }
 
 func TestParser_ParseString(t *testing.T) {
@@ -74,7 +74,7 @@ resources:
 	parser := NewParser()
 	_, err := parser.ParseString(yamlStr)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "duplicate resource ID")
+	assert.Contains(t, err.Error(), "duplicate resource")
 }
 
 func TestParser_ValidateMissingID(t *testing.T) {

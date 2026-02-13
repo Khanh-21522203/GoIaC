@@ -6,6 +6,9 @@ import (
 	"regexp"
 )
 
+// refPattern matches ${type.resource_id.attribute} interpolation expressions
+var refPattern = regexp.MustCompile(`\$\{(\w+)\.(\w+)\.(\w+)\}`)
+
 type Graph struct {
 	nodes map[string]*Node
 	edges map[string][]string
@@ -47,14 +50,11 @@ func ExtractReferences(properties map[string]interface{}) []string {
 	refs := []string{}
 	seen := make(map[string]bool)
 
-	// Regex pattern: ${type.resource_id.attribute}
-	re := regexp.MustCompile(`\$\{(\w+)\.(\w+)\.(\w+)\}`)
-
 	var scan func(interface{})
 	scan = func(v interface{}) {
 		switch val := v.(type) {
 		case string:
-			matches := re.FindAllStringSubmatch(val, -1)
+			matches := refPattern.FindAllStringSubmatch(val, -1)
 			for _, match := range matches {
 				resourceID := match[2]
 				if !seen[resourceID] {

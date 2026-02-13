@@ -3,9 +3,13 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
-func (c *CLI) Apply(configPath string) error {
+func (c *CLI) Apply(configPath string, autoApprove bool) error {
 	if err := c.stateManager.Lock(); err != nil {
 		return fmt.Errorf("failed to acquire lock: %w", err)
 	}
@@ -23,18 +27,32 @@ func (c *CLI) Apply(configPath string) error {
 
 	c.printPlan(changes)
 
-	fmt.Print("\nDo you want to apply these changes? (yes/no): ")
-	var response string
-	fmt.Scanln(&response)
+	if !autoApprove {
+		fmt.Print("\nDo you want to apply these changes? (yes/no): ")
+		var response string
+		fmt.Scanln(&response)
 
-	if response != "yes" {
-		fmt.Println("Apply cancelled.")
-		return nil
+		if response != "yes" {
+			fmt.Println("Apply cancelled.")
+			return nil
+		}
 	}
 
 	fmt.Println("\nApplying changes...")
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	// Handle graceful shutdown on SIGINT/SIGTERM
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		fmt.Println("\nReceived interrupt signal, cancelling apply...")
+		cancel()
+	}()
+	defer signal.Stop(sigChan)
+
 	if err := c.reconciler.Apply(ctx, desired); err != nil {
 		return fmt.Errorf("failed to apply changes: %w", err)
 	}

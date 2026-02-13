@@ -24,6 +24,11 @@ func (m *Manager) Lock() error {
 	}
 
 	for i := 0; i < LockMaxRetries; i++ {
+		if i > 0 {
+			// Exponential backoff: 100ms, 200ms, 400ms...
+			time.Sleep(time.Duration(100<<uint(i-1)) * time.Millisecond)
+		}
+
 		f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
 		if err != nil {
 			if os.IsExist(err) {
@@ -35,7 +40,6 @@ func (m *Manager) Lock() error {
 			}
 			return fmt.Errorf("failed to create lock file: %w", err)
 		}
-		defer f.Close()
 
 		lockInfo := LockInfo{
 			LockedAt:  time.Now(),
@@ -43,9 +47,16 @@ func (m *Manager) Lock() error {
 			ProcessID: os.Getpid(),
 		}
 
-		if err := json.NewEncoder(f).Encode(lockInfo); err != nil {
+		writeErr := json.NewEncoder(f).Encode(lockInfo)
+		closeErr := f.Close()
+
+		if writeErr != nil {
 			_ = os.Remove(lockPath)
-			return fmt.Errorf("failed to write lock info: %w", err)
+			return fmt.Errorf("failed to write lock info: %w", writeErr)
+		}
+		if closeErr != nil {
+			_ = os.Remove(lockPath)
+			return fmt.Errorf("failed to close lock file: %w", closeErr)
 		}
 		return nil
 	}

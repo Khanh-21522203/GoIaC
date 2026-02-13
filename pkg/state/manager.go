@@ -1,6 +1,8 @@
 package state
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,9 +11,10 @@ import (
 )
 
 const (
-	StateDir      = ".goiac"
-	StateFile     = "state.json"
-	StateLockFile = "state.lock"
+	StateDir          = ".goiac"
+	StateFile         = "state.json"
+	StateChecksumFile = "state.json.sha256"
+	StateLockFile     = "state.lock"
 )
 
 type Manager struct {
@@ -26,6 +29,7 @@ func NewManager() *Manager {
 
 func (m *Manager) Load() (*State, error) {
 	statePath := filepath.Join(m.stateDir, StateFile)
+	checksumPath := filepath.Join(m.stateDir, StateChecksumFile)
 
 	data, err := os.ReadFile(statePath)
 	if err != nil {
@@ -35,11 +39,21 @@ func (m *Manager) Load() (*State, error) {
 		return nil, fmt.Errorf("failed to read state file: %w", err)
 	}
 
-	var state State
-	if err := json.Unmarshal(data, &state); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal state: %w", err)
+	// Verify checksum if it exists
+	if checksumData, err := os.ReadFile(checksumPath); err == nil {
+		expected := string(checksumData)
+		actual := computeChecksum(data)
+		if expected != actual {
+			return nil, fmt.Errorf("state file integrity check failed: checksum mismatch (expected %s, got %s)", expected, actual)
+		}
 	}
-	return &state, nil
+
+	// Migrate state to current version if needed
+	migrated, err := MigrateState(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to migrate state: %w", err)
+	}
+	return migrated, nil
 }
 
 func (m *Manager) Save(state *State) error {
@@ -67,7 +81,19 @@ func (m *Manager) Save(state *State) error {
 		return fmt.Errorf("failed to rename state file: %w", err)
 	}
 
+	// Write checksum file
+	checksum := computeChecksum(data)
+	checksumPath := filepath.Join(m.stateDir, StateChecksumFile)
+	if err := os.WriteFile(checksumPath, []byte(checksum), 0644); err != nil {
+		return fmt.Errorf("failed to write checksum file: %w", err)
+	}
+
 	return nil
+}
+
+func computeChecksum(data []byte) string {
+	hash := sha256.Sum256(data)
+	return hex.EncodeToString(hash[:])
 }
 
 func (m *Manager) Update(state *State, resourceID string, resourceState *ResourceState) {

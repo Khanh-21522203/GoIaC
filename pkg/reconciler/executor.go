@@ -5,7 +5,6 @@ import (
 	"GoIaC/pkg/state"
 	"context"
 	"fmt"
-	"sync"
 )
 
 type ExecutionResult struct {
@@ -14,41 +13,29 @@ type ExecutionResult struct {
 	Err      error
 }
 
-// ExecuteChanges executes changes in parallel within each stage
+// ExecuteChanges executes changes sequentially to avoid data races on shared state.
+// Parallelism is handled at the topological-level by the reconciler (independent
+// resources at the same depth level could be parallelised in the future).
 func ExecuteChanges(
 	ctx context.Context,
 	changes []*Change,
 	currentState *state.State,
 	registry *provider.Registry,
 ) []ExecutionResult {
-
 	results := make([]ExecutionResult, 0, len(changes))
-	resultChan := make(chan ExecutionResult, len(changes))
-	sem := make(chan struct{}, 4)
-
-	var wg sync.WaitGroup
 
 	for _, change := range changes {
-		wg.Add(1)
-		go func(change *Change) {
-			defer wg.Done()
-
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			result := executeChange(ctx, change, currentState, registry)
-			resultChan <- result
-		}(change)
-	}
-
-	go func() {
-		wg.Wait()
-		close(resultChan)
-	}()
-
-	for result := range resultChan {
+		if ctx.Err() != nil {
+			results = append(results, ExecutionResult{
+				Change: change,
+				Err:    fmt.Errorf("context cancelled: %w", ctx.Err()),
+			})
+			break
+		}
+		result := executeChange(ctx, change, currentState, registry)
 		results = append(results, result)
 	}
+
 	return results
 }
 
@@ -64,7 +51,7 @@ func executeChange(ctx context.Context, change *Change, currentState *state.Stat
 	case ChangeTypeNoop:
 		return ExecutionResult{Change: change, NewState: change.OldState}
 	default:
-		return ExecutionResult{Change: change, Err: fmt.Errorf("unknown change type: %s", change.Type)}
+		return ExecutionResult{Change: change, Err: fmt.Errorf("unknown change type: %d", change.Type)}
 	}
 }
 

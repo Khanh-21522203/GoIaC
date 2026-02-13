@@ -7,6 +7,9 @@ import (
 	"regexp"
 )
 
+// refPattern matches ${type.resource_id.attribute} interpolation expressions
+var refPattern = regexp.MustCompile(`\$\{(\w+)\.(\w+)\.(\w+)\}`)
+
 func InterpolateReferences(resource *config.Resource, currentState *state.State) *config.Resource {
 	resolved := &config.Resource{
 		ID:         resource.ID,
@@ -47,11 +50,8 @@ func interpolateValue(value interface{}, currentState *state.State) interface{} 
 
 // interpolateString replaces ${ref} patterns with actual values
 func interpolateString(s string, currentState *state.State) string {
-	// Pattern: ${type.resource_id.attribute}
-	re := regexp.MustCompile(`\$\{(\w+)\.(\w+)\.(\w+)\}`)
-
-	return re.ReplaceAllStringFunc(s, func(match string) string {
-		parts := re.FindStringSubmatch(match)
+	return refPattern.ReplaceAllStringFunc(s, func(match string) string {
+		parts := refPattern.FindStringSubmatch(match)
 		if len(parts) != 4 {
 			return match
 		}

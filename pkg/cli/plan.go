@@ -23,7 +23,7 @@ func (c *CLI) Plan(configPath string) error {
 
 // printPlan displays the execution plan
 func (c *CLI) printPlan(changes []*reconciler.Change) {
-	fmt.Println("\n=== Execution Plan ===\n")
+	fmt.Println("\n=== Execution Plan ===")
 
 	createCount := 0
 	updateCount := 0

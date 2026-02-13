@@ -4,6 +4,7 @@ import (
 	"GoIaC/pkg/config"
 	"GoIaC/pkg/state"
 	"fmt"
+	"reflect"
 )
 
 type ChangeType int
@@ -70,11 +71,38 @@ func ComputeDiff(desired []*config.Resource, acutal *state.State) []*Change {
 func propertiesDiffer(desired map[string]interface{}, actual map[string]interface{}) bool {
 	for key, desiredValue := range desired {
 		actualValue, exists := actual[key]
-		if !exists || fmt.Sprint(desiredValue) != fmt.Sprint(actualValue) {
+		if !exists || !reflect.DeepEqual(normalizeValue(desiredValue), normalizeValue(actualValue)) {
 			return true
 		}
 	}
 	return false
+}
+
+// normalizeValue converts numeric types to float64 for consistent comparison
+// (YAML/JSON unmarshal may produce different numeric types)
+func normalizeValue(v interface{}) interface{} {
+	switch val := v.(type) {
+	case int:
+		return float64(val)
+	case int64:
+		return float64(val)
+	case float32:
+		return float64(val)
+	case map[string]interface{}:
+		normalized := make(map[string]interface{}, len(val))
+		for k, inner := range val {
+			normalized[k] = normalizeValue(inner)
+		}
+		return normalized
+	case []interface{}:
+		normalized := make([]interface{}, len(val))
+		for i, inner := range val {
+			normalized[i] = normalizeValue(inner)
+		}
+		return normalized
+	default:
+		return v
+	}
 }
 
 // computeChangedFields returns a description of what changed
@@ -85,7 +113,7 @@ func computeChangedFields(desired map[string]interface{}, actual map[string]inte
 		actualValue, exists := actual[key]
 		if !exists {
 			changed = append(changed, fmt.Sprintf("%s added", key))
-		} else if fmt.Sprint(desiredValue) != fmt.Sprint(actualValue) {
+		} else if !reflect.DeepEqual(normalizeValue(desiredValue), normalizeValue(actualValue)) {
 			changed = append(changed, fmt.Sprintf("%s changed", key))
 		}
 	}

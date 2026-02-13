@@ -1,0 +1,12 @@
+resources:
+  - id: hello
+    type: local_file
+    properties:
+      path: ./hello.txt
+      content: "Hello from GoIaC!"
+
+  - id: config
+    type: local_file
+    properties:
+      path: ./config.txt
+      content: "app_name=GoIaC\nversion=1.0"

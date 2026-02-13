@@ -63,7 +63,7 @@ func (p *NetworkProvider) Read(ctx context.Context, resourceID string) (*state.R
 
 	return &state.ResourceState{
 		ID:   inspect.ID,
-		Type: "docker_netwotk",
+		Type: "docker_network",
 		Attributes: map[string]interface{}{
 			"network_id": inspect.ID,
 			"name":       inspect.Name,

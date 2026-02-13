@@ -30,7 +30,7 @@ func (c *CLI) StateShow(resourceID string) error {
 		}
 	} else {
 		// Show all resources
-		fmt.Println("\n=== Current State ===\n")
+		fmt.Println("\n=== Current State ===")
 		for id, res := range currentState.Resources {
 			fmt.Printf("%s (%s)\n", id, res.Type)
 			fmt.Printf("  ID: %s\n", res.ID)

@@ -1,0 +1,13 @@
+resources:
+  - id: app-network
+    type: docker_network
+    properties:
+      name: app-network
+      driver: bridge
+
+  - id: web-server
+    type: docker_container
+    properties:
+      image: nginx:latest
+      port: 8080
+      network_id: ${docker_network.app-network.network_id}
