@@ -10,11 +10,6 @@ import (
 )
 
 func (c *CLI) Apply(configPath string, autoApprove bool) error {
-	if err := c.stateManager.Lock(); err != nil {
-		return fmt.Errorf("failed to acquire lock: %w", err)
-	}
-	defer c.stateManager.Unlock()
-
 	desired, err := c.parser.Parse(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to parse config: %w", err)
@@ -22,7 +17,7 @@ func (c *CLI) Apply(configPath string, autoApprove bool) error {
 
 	changes, err := c.reconciler.Plan(desired)
 	if err != nil {
-		return fmt.Errorf("failed to apply changes: %w", err)
+		return fmt.Errorf("failed to plan: %w", err)
 	}
 
 	c.printPlan(changes)
@@ -31,7 +26,6 @@ func (c *CLI) Apply(configPath string, autoApprove bool) error {
 		fmt.Print("\nDo you want to apply these changes? (yes/no): ")
 		var response string
 		fmt.Scanln(&response)
-
 		if response != "yes" {
 			fmt.Println("Apply cancelled.")
 			return nil
@@ -40,10 +34,14 @@ func (c *CLI) Apply(configPath string, autoApprove bool) error {
 
 	fmt.Println("\nApplying changes...")
 
+	if err := c.stateManager.Lock(); err != nil {
+		return fmt.Errorf("failed to acquire lock: %w", err)
+	}
+	defer c.stateManager.Unlock()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	// Handle graceful shutdown on SIGINT/SIGTERM
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -58,6 +56,5 @@ func (c *CLI) Apply(configPath string, autoApprove bool) error {
 	}
 
 	fmt.Println("\nInfrastructure updated successfully!")
-
 	return nil
 }

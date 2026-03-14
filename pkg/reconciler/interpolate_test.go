@@ -62,21 +62,23 @@ func TestInterpolateReferences_NestedProperties(t *testing.T) {
 		},
 	}
 
+	// Uses a hypothetical resource type to test nested-map interpolation
+	// without depending on a real provider schema.
 	resource := &config.Resource{
 		ID:   "app",
-		Type: "docker_container",
+		Type: "hypothetical",
 		Properties: map[string]interface{}{
-			"image": "myapp",
-			"env": map[string]interface{}{
-				"DB_HOST": "${docker_container.db.ip_address}",
+			"name": "myapp",
+			"config": map[string]interface{}{
+				"upstream": "${docker_container.db.ip_address}",
 			},
 		},
 	}
 
 	resolved := InterpolateReferences(resource, currentState)
 
-	env := resolved.Properties["env"].(map[string]interface{})
-	assert.Equal(t, "172.17.0.2", env["DB_HOST"])
+	cfg := resolved.Properties["config"].(map[string]interface{})
+	assert.Equal(t, "172.17.0.2", cfg["upstream"])
 }
 
 func TestInterpolateReferences_ListProperties(t *testing.T) {

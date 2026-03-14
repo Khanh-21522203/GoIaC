@@ -2,6 +2,9 @@ package graph
 
 import "fmt"
 
+// TopologicalSort returns nodes in dependent-first order (leaves of the dependency
+// tree first). Since edges point from dependent → dependency, nodes with in-degree 0
+// are those no other node depends on. This order is correct for DESTROY operations.
 func (g *Graph) TopologicalSort() ([]string, error) {
 	inDegree := make(map[string]int, len(g.nodes))
 
@@ -53,6 +56,8 @@ func (g *Graph) TopologicalSort() ([]string, error) {
 	return order, nil
 }
 
+// TopologicalSortReverse returns nodes in dependency-first order (dependencies before
+// the resources that need them). This order is correct for CREATE/UPDATE operations.
 func (g *Graph) TopologicalSortReverse() ([]string, error) {
 	normal, err := g.TopologicalSort()
 	if err != nil {

@@ -17,49 +17,54 @@ const (
 )
 
 type Change struct {
-	Type     ChangeType
-	Resource *config.Resource
-	OldState *state.ResourceState
-	Reason   string
+	Type             ChangeType
+	Resource         *config.Resource
+	OldState         *state.ResourceState
+	Reason           string
+	ConfigResourceID string // config-level resource ID (map key in state)
 }
 
-func ComputeDiff(desired []*config.Resource, acutal *state.State) []*Change {
+func ComputeDiff(desired []*config.Resource, actual *state.State) []*Change {
 	var changes []*Change
 	processed := make(map[string]bool)
 
 	for _, resource := range desired {
 		processed[resource.ID] = true
 
-		oldState, exists := acutal.Resources[resource.ID]
+		oldState, exists := actual.Resources[resource.ID]
 		if !exists {
 			changes = append(changes, &Change{
-				Type:     ChangeTypeCreate,
-				Resource: resource,
-				Reason:   "resource does not exist",
+				Type:             ChangeTypeCreate,
+				Resource:         resource,
+				Reason:           "resource does not exist",
+				ConfigResourceID: resource.ID,
 			})
 		} else if propertiesDiffer(resource.Properties, oldState.Attributes) {
 			changes = append(changes, &Change{
-				Type:     ChangeTypeUpdate,
-				Resource: resource,
-				OldState: oldState,
-				Reason:   computeChangedFields(resource.Properties, oldState.Attributes),
+				Type:             ChangeTypeUpdate,
+				Resource:         resource,
+				OldState:         oldState,
+				Reason:           computeChangedFields(resource.Properties, oldState.Attributes),
+				ConfigResourceID: resource.ID,
 			})
 		} else {
 			changes = append(changes, &Change{
-				Type:     ChangeTypeNoop,
-				Resource: resource,
-				OldState: oldState,
+				Type:             ChangeTypeNoop,
+				Resource:         resource,
+				OldState:         oldState,
+				ConfigResourceID: resource.ID,
 			})
 		}
 	}
 
 	// Check for resources to delete (in actual but not desired)
-	for resourceID, oldState := range acutal.Resources {
+	for resourceID, oldState := range actual.Resources {
 		if !processed[resourceID] {
 			changes = append(changes, &Change{
-				Type:     ChangeTypeDelete,
-				OldState: oldState,
-				Reason:   "resource no longer in configuration",
+				Type:             ChangeTypeDelete,
+				OldState:         oldState,
+				Reason:           "resource no longer in configuration",
+				ConfigResourceID: resourceID,
 			})
 		}
 	}
@@ -84,7 +89,15 @@ func normalizeValue(v interface{}) interface{} {
 	switch val := v.(type) {
 	case int:
 		return float64(val)
+	case int32:
+		return float64(val)
 	case int64:
+		return float64(val)
+	case uint:
+		return float64(val)
+	case uint32:
+		return float64(val)
+	case uint64:
 		return float64(val)
 	case float32:
 		return float64(val)

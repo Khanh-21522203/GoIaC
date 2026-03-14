@@ -2,7 +2,7 @@ resources:
   - id: app-network
     type: docker_network
     properties:
-      name: app-network
+      name: my-network
       driver: bridge
 
   - id: web-server

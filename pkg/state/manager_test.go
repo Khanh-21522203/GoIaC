@@ -1,9 +1,11 @@
 package state
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -106,4 +108,48 @@ func TestStateManager_WithLock(t *testing.T) {
 	lockPath := filepath.Join(tmpDir, StateLockFile)
 	_, err = os.Stat(lockPath)
 	assert.True(t, os.IsNotExist(err))
+}
+
+func TestStateManager_ChecksumMismatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	manager := &Manager{stateDir: tmpDir}
+
+	// Save valid state
+	s := NewState()
+	s.Resources["web"] = &ResourceState{ID: "abc", Type: "local_file", Attributes: map[string]interface{}{"path": "/tmp/a"}}
+	require.NoError(t, manager.Save(s))
+
+	// Tamper with the state file after saving
+	statePath := filepath.Join(tmpDir, StateFile)
+	require.NoError(t, os.WriteFile(statePath, []byte(`{"version":1,"resources":{}}`), 0644))
+
+	// Load should detect checksum mismatch
+	_, err := manager.Load()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "checksum mismatch")
+}
+
+func TestStateManager_StaleLock(t *testing.T) {
+	tmpDir := t.TempDir()
+	manager := &Manager{stateDir: tmpDir}
+
+	// Write a lock file with a timestamp > staleLockDuration ago
+	lockPath := filepath.Join(tmpDir, StateLockFile)
+	staleInfo := LockInfo{
+		LockedAt:  time.Now().Add(-(staleLockDuration + time.Minute)),
+		LockedBy:  "goiac",
+		ProcessID: 99999,
+	}
+	data, err := json.Marshal(staleInfo)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(lockPath, data, 0644))
+
+	// Lock should succeed because the existing lock is stale
+	err = manager.Lock()
+	require.NoError(t, err)
+	defer manager.Unlock()
+
+	// Verify our new lock is present
+	_, err = os.Stat(lockPath)
+	assert.NoError(t, err)
 }

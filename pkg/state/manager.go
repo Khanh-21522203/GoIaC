@@ -27,6 +27,12 @@ func NewManager() *Manager {
 	}
 }
 
+// NewManagerWithDir creates a Manager using the given directory instead of the default.
+// Intended for use in tests.
+func NewManagerWithDir(dir string) *Manager {
+	return &Manager{stateDir: dir}
+}
+
 func (m *Manager) Load() (*State, error) {
 	statePath := filepath.Join(m.stateDir, StateFile)
 	checksumPath := filepath.Join(m.stateDir, StateChecksumFile)

@@ -14,6 +14,9 @@ func NewParser() *Parser {
 }
 
 func (p *Parser) Parse(path string) ([]*Resource, error) {
+	if path == "" {
+		path = "main.yaml"
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
@@ -32,10 +35,6 @@ func (p *Parser) Parse(path string) ([]*Resource, error) {
 }
 
 func (p *Parser) validate(resources []*Resource) error {
-	if len(resources) == 0 {
-		return fmt.Errorf("no resources defined in configuration")
-	}
-
 	seen := make(map[string]bool)
 	for _, resource := range resources {
 		if resource.ID == "" {
@@ -53,8 +52,8 @@ func (p *Parser) validate(resources []*Resource) error {
 	return nil
 }
 
-// ParseString parses YAML from a string (useful for testing)
-func (p *Parser) ParseString(yamlStr string) ([]*Resource, error) {
+// parseString parses YAML from a string (useful for testing)
+func (p *Parser) parseString(yamlStr string) ([]*Resource, error) {
 	var config Config
 	if err := yaml.Unmarshal([]byte(yamlStr), &config); err != nil {
 		return nil, fmt.Errorf("failed to parse YAML: %w", err)

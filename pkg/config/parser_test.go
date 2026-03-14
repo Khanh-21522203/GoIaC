@@ -53,7 +53,7 @@ resources:
 `
 
 	parser := NewParser()
-	resources, err := parser.ParseString(yamlStr)
+	resources, err := parser.parseString(yamlStr)
 	require.NoError(t, err)
 
 	assert.Len(t, resources, 1)
@@ -72,7 +72,7 @@ resources:
 `
 
 	parser := NewParser()
-	_, err := parser.ParseString(yamlStr)
+	_, err := parser.parseString(yamlStr)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "duplicate resource")
 }
@@ -85,7 +85,7 @@ resources:
 `
 
 	parser := NewParser()
-	_, err := parser.ParseString(yamlStr)
+	_, err := parser.parseString(yamlStr)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "missing ID")
 }
@@ -98,7 +98,7 @@ resources:
 `
 
 	parser := NewParser()
-	_, err := parser.ParseString(yamlStr)
+	_, err := parser.parseString(yamlStr)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "missing type")
 }
@@ -107,7 +107,8 @@ func TestParser_EmptyConfig(t *testing.T) {
 	yamlStr := `resources: []`
 
 	parser := NewParser()
-	_, err := parser.ParseString(yamlStr)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no resources defined")
+	resources, err := parser.parseString(yamlStr)
+	require.NoError(t, err)
+	assert.NotNil(t, resources)
+	assert.Empty(t, resources)
 }

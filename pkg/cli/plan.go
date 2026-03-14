@@ -40,7 +40,7 @@ func (c *CLI) printPlan(changes []*reconciler.Change) {
 			fmt.Printf("      Reason: %s\n", change.Reason)
 			updateCount++
 		case reconciler.ChangeTypeDelete:
-			fmt.Printf("  - Delete: %s\n", change.OldState.ID)
+			fmt.Printf("  - Delete: %s\n", change.ConfigResourceID)
 			deleteCount++
 		case reconciler.ChangeTypeNoop:
 			noopCount++

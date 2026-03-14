@@ -126,22 +126,53 @@ func (r *Reconciler) Apply(ctx context.Context, desired []*config.Resource) erro
 		}
 	}
 
-	// Handle deletions (resources in state but not in desired config)
+	// Handle deletions in topological order (dependent resources first).
+	// Note: state attributes store resolved values, not ${...} patterns,
+	// so edge detection is limited; this primarily ensures deterministic ordering.
+	var deleteChanges []*Change
 	for _, change := range changes {
 		if change.Type == ChangeTypeDelete {
+			deleteChanges = append(deleteChanges, change)
+		}
+	}
+
+	if len(deleteChanges) > 0 {
+		delResources := make([]*config.Resource, 0, len(deleteChanges))
+		for _, ch := range deleteChanges {
+			delResources = append(delResources, &config.Resource{
+				ID:         ch.ConfigResourceID,
+				Type:       ch.OldState.Type,
+				Properties: ch.OldState.Attributes,
+			})
+		}
+		dg := graph.NewGraph()
+		if err := dg.Build(delResources); err == nil {
+			if deleteOrder, err := dg.TopologicalSort(); err == nil {
+				changeByID := make(map[string]*Change, len(deleteChanges))
+				for _, ch := range deleteChanges {
+					changeByID[ch.ConfigResourceID] = ch
+				}
+				ordered := make([]*Change, 0, len(deleteOrder))
+				for _, id := range deleteOrder {
+					if ch, ok := changeByID[id]; ok {
+						ordered = append(ordered, ch)
+					}
+				}
+				deleteChanges = ordered
+			}
+		}
+
+		for _, change := range deleteChanges {
 			results := ExecuteChanges(ctx, []*Change{change}, currentState, r.registry)
 			for _, result := range results {
 				if result.Err != nil {
-					return fmt.Errorf("failed to delete %s: %w",
-						result.Change.OldState.ID, result.Err)
-				}
-				// Use OldState.ID to find the key — Resource is nil for deletes
-				for key, res := range currentState.Resources {
-					if res.ID == result.Change.OldState.ID {
-						delete(currentState.Resources, key)
-						break
+					if saveErr := r.stateManager.Save(currentState); saveErr != nil {
+						log.Error("failed to save partial state", "error", saveErr)
 					}
+					return fmt.Errorf("failed to delete %s: %w",
+						result.Change.ConfigResourceID, result.Err)
 				}
+				delete(currentState.Resources, result.Change.ConfigResourceID)
 			}
 		}
 	}

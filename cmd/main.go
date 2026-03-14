@@ -37,6 +37,9 @@ func main() {
 // parseGlobalFlags extracts global flags and returns remaining args
 func parseGlobalFlags(args []string) []string {
 	var remaining []string
+	logLevel := slog.LevelInfo
+	logJSON := false
+
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--log-level":
@@ -44,21 +47,28 @@ func parseGlobalFlags(args []string) []string {
 				i++
 				switch strings.ToLower(args[i]) {
 				case "debug":
-					logger.SetLevel(slog.LevelDebug)
+					logLevel = slog.LevelDebug
 				case "warn":
-					logger.SetLevel(slog.LevelWarn)
+					logLevel = slog.LevelWarn
 				case "error":
-					logger.SetLevel(slog.LevelError)
+					logLevel = slog.LevelError
 				default:
-					logger.SetLevel(slog.LevelInfo)
+					logLevel = slog.LevelInfo
 				}
 			}
 		case "--log-json":
-			logger.SetJSON(slog.LevelInfo)
+			logJSON = true
 		default:
 			remaining = append(remaining, args[i])
 		}
 	}
+
+	if logJSON {
+		logger.SetJSON(logLevel)
+	} else if logLevel != slog.LevelInfo {
+		logger.SetLevel(logLevel)
+	}
+
 	return remaining
 }
 
